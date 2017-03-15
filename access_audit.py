@@ -23,6 +23,8 @@ __version__ = "0.1.0"
 __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 
 import argparse
+import calendar
+import time
 
 import utmp
 
@@ -74,16 +76,31 @@ def did_access(days):
     """Query wtmp file for users that *did* access system during specified
     period.
     """
-    print("Days: {}".format(days)) # DEBUG
-    users = []
     with open(WTMP, "rb") as access_log:
-        buffer = access_log.read()
-        for entry in utmp.read(buffer):
+        log_buffer = access_log.read()
+        users = []
+        for entry in utmp.read(log_buffer):
             print(entry.time, entry.type, entry)
             user = entry.user
             if user and user not in users:
                 users.append(user)
-        print("\n", users)
+        print("\n", users, "\n")
+    # DEBUG
+    print("Days: {}".format(days))
+    print("time.clock(): {}".format(time.clock()))
+    print("time.ctime(): {}".format(time.ctime()))
+    print("time.gmtime(): {}".format(time.gmtime()))
+    print("calendar.timegm(time.gmtime()): {}".format(calendar.timegm(time.gmtime())))
+    print("time.localtime(): {}".format(time.localtime()))
+    print("time.mktime(time.localtime()): {}".format(time.mktime(time.localtime())))
+    print("time.time(): {}".format(time.time()))
+    for entry in utmp.read(log_buffer):
+        print("Entry time: {}".format(entry.time))
+        # There may be clues in reader.py's `time()` method!
+#        print("Parsed entry time: {}".format(time.mktime(entry.time)))
+#        parsed_entry_time = time.strptime(str(entry.time), "%c")
+#        print("Parsed entry time: {}".format(parsed_entry_time))
+        break
 
 def main():
     arg_parser()
