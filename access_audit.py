@@ -15,7 +15,8 @@
 
 ## TODO
 
-* Date logic
+* Could access logging
+* Could access querying
 """
 
 __version__ = "0.1.0"
@@ -24,19 +25,20 @@ __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 import argparse
 import calendar # DEBUG
 import datetime
+import platform
 import time
 
 import utmp
 
 # Set path to `wtmp` file.
 # WTMP = "/var/log/wtmp"
-WTMP = "wtmp-ams"
+WTMP = "wtmp-zag"
 
 def parse_arguments():
     """Parse command line arguments."""
     # Create parser object.
     parser = argparse.ArgumentParser(
-        description="Run system access audit.")
+        description="System access auditing and logging.")
     # Create mutually exclusive argument group.
     group = parser.add_mutually_exclusive_group()
     # Populate argument group.
@@ -48,6 +50,11 @@ def parse_arguments():
         "-d", "--did", type=days, nargs="?", const=30, metavar="days",
         help=("list users that *did* access system during specified number of "
               "days (default: %(const)s)"))
+    group.add_argument(
+        "-l", "--log", type=argparse.FileType("a"), nargs="?",
+        const="/var/log/could.log", metavar="path",
+        help=("create or append to specified log of users who could access "
+              "system (default: %(const)s)"))
     # Parse and return arguments, along with usage.
     args = parser.parse_args()
     return args, parser.format_usage()
@@ -69,27 +76,52 @@ def query_did_access(days):
     """Query wtmp file for users that *did* access system during specified
     period.
     """
+    # Define time constants.
     QUERY_TIME = time.time() - days * 86400
     HUMAN_QUERY_TIME = datetime.datetime.fromtimestamp(QUERY_TIME)
+    # Parse wtmp file and create list of users.
     users = []
     with open(WTMP, "rb") as access_log:
         log_buffer = access_log.read()
     for entry in utmp.read(log_buffer):
+        # Add log entry second and microsecond fields, compare with query time.
         if entry.sec + entry.usec * .000001 > QUERY_TIME:
             print(entry.time, entry.type, entry)
             user = entry.user
             if user and user not in users:
                 users.append(user)
+    # Output query results.
     if users:
-        print("\n{} users have accessed this system in the last {} days (since "
-              "{}):".format(len(users), days, HUMAN_QUERY_TIME))
+        print("\n{0} {1} accessed {2} in the last {3} (since {4}):"
+              .format(len(users),
+                      pluralise("user", users),
+                      platform.node(),
+                      pluralise("day", days),
+                      HUMAN_QUERY_TIME))
         for user in users:
             print(user)
         print() # Is there a cleaner way to achieve this newline?
     else:
-        print("This system has not been accessed in the last {} days (since "
-              "{}).\n".format(days, HUMAN_QUERY_TIME))
+        print("{0} has not been accessed in the last {1} (since {2}).\n"
+              .format(platform.node(),
+                      pluralise("day", days),
+                      HUMAN_QUERY_TIME))
     # time_debug(days, log_buffer) # DEBUG
+
+def pluralise(word, count):
+    """Return singular or plural form of given word."""
+    if word == "day":
+        if count == 1:
+            return "day"
+        return "{} days".format(count)
+    if word == "user":
+        if count == 1:
+            return "user has"
+        return "users have"
+
+def log_could_access(path):
+    """Create or append to log of users who could access system."""
+    print("Path: {}".format(path)) # DEBUG
 
 def time_debug(days, log_buffer): # DEBUG
     print("Days: {}".format(days))
@@ -105,12 +137,14 @@ def time_debug(days, log_buffer): # DEBUG
 
 def main():
     args, usage = parse_arguments()
-    # print(args) # DEBUG
+    print(args) # DEBUG
     # If an argument was passed, call related function, otherwise output usage.
     if args.could:
         query_could_access(args.could)
     elif args.did:
         query_did_access(args.did)
+    elif args.log:
+        log_could_access(args.log)
     else:
         print(usage)
 
