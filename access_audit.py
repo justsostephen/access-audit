@@ -32,6 +32,7 @@ __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 import argparse
 import calendar # DEBUG
 import datetime
+import os
 import platform
 import time
 
@@ -40,6 +41,9 @@ import utmp
 # Set `wtmp` file path.
 # WTMP = "/var/log/wtmp"
 WTMP = "../resources/wtmp-zag"
+# Set `user-authorized-keys` dir path.
+# KEY_DIR = "/etc/ssh/user-authorized-keys"
+KEY_DIR = "../resources/user-authorized-keys-zag"
 # Set default "could access" log path.
 # LOG_DEFAULT = "/var/log/could.log"
 LOG_DEFAULT = "../resources/could.log"
@@ -131,7 +135,17 @@ def pluralise(word, count):
 
 def log_could_access(path):
     """Create or append to log of users who could access system."""
+    # https://docs.python.org/3/tutorial/inputoutput.html
     print("Path: {}".format(path)) # DEBUG
+    keys = []
+    for key_file in os.listdir(KEY_DIR):
+        with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as f:
+            for key in f:
+                if key not in keys:
+                    keys.append(key)
+    path.writelines(keys)
+    path.close()
+    print("Key: {}".format(keys[0]))
 
 def time_debug(days, log_buffer): # DEBUG
     print("Days: {}".format(days))
