@@ -10,7 +10,14 @@
 * Detail users that *did* access envs
 * Run locally or on MAAS nodes?
 * Schedule run and report email w/ cron
-* utmp-0.4 installed from PyPI
+
+
+## Dependencies
+
+* utmp installed from PyPI
+* launchpadlib dep lazr.restfulclient installed via `pip install bzr+lp:lazr.restfulclient`
+* launchpadlib dep cryptography deps libssl-dev, libffi-dev, python3-dev installed via apt
+* launchpadlib installed from PyPI
 
 
 ## TODO
@@ -30,9 +37,11 @@ import time
 
 import utmp
 
-# Set path to `wtmp` file.
+# Set `wtmp` file path.
 # WTMP = "/var/log/wtmp"
 WTMP = "wtmp-zag"
+# Set default "could access" log path.
+LOG_DEFAULT = "/var/log/could.log"
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -52,7 +61,7 @@ def parse_arguments():
               "days (default: %(const)s)"))
     group.add_argument(
         "-l", "--log", type=argparse.FileType("a"), nargs="?",
-        const="/var/log/could.log", metavar="path",
+        const=LOG_DEFAULT, metavar="path",
         help=("create or append to specified log of users who could access "
               "system (default: %(const)s)"))
     # Parse and return arguments, along with usage.
