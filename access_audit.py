@@ -39,9 +39,10 @@ import utmp
 
 # Set `wtmp` file path.
 # WTMP = "/var/log/wtmp"
-WTMP = "wtmp-zag"
+WTMP = "../resources/wtmp-zag"
 # Set default "could access" log path.
-LOG_DEFAULT = "/var/log/could.log"
+# LOG_DEFAULT = "/var/log/could.log"
+LOG_DEFAULT = "../resources/could.log"
 
 def parse_arguments():
     """Parse command line arguments."""
