@@ -90,16 +90,16 @@ def query_did_access(days):
     """Query wtmp file for users that *did* access system during specified
     period.
     """
-    # Define time constants.
-    QUERY_TIME = time.time() - days * 86400
-    HUMAN_QUERY_TIME = datetime.datetime.fromtimestamp(QUERY_TIME)
+    # Define time variables.
+    query_time = time.time() - days * 86400
+    human_query_time = datetime.datetime.fromtimestamp(query_time)
     # Parse wtmp file and create list of users.
     users = []
     with open(WTMP, "rb") as access_log:
         log_buffer = access_log.read()
     for entry in utmp.read(log_buffer):
         # Add log entry second and microsecond fields, compare with query time.
-        if entry.sec + entry.usec * .000001 > QUERY_TIME:
+        if entry.sec + entry.usec * .000001 > query_time:
             print(entry.time, entry.type, entry)
             user = entry.user
             if user and user not in users:
@@ -111,7 +111,7 @@ def query_did_access(days):
                       pluralise("user", users),
                       platform.node(),
                       pluralise("day", days),
-                      HUMAN_QUERY_TIME))
+                      human_query_time))
         for user in users:
             print(user)
         print() # Is there a cleaner way to achieve this newline?
@@ -119,7 +119,7 @@ def query_did_access(days):
         print("{0} has not been accessed in the last {1} (since {2}).\n"
               .format(platform.node(),
                       pluralise("day", days),
-                      HUMAN_QUERY_TIME))
+                      human_query_time))
     # time_debug(days, log_buffer) # DEBUG
 
 def pluralise(word, count):
@@ -139,8 +139,8 @@ def log_could_access(path):
     print("Path: {}".format(path)) # DEBUG
     keys = []
     for key_file in os.listdir(KEY_DIR):
-        with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as f:
-            for key in f:
+        with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as in_file:
+            for key in in_file:
                 if key not in keys:
                     keys.append(key)
     path.writelines(keys)
@@ -174,4 +174,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
