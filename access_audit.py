@@ -15,9 +15,12 @@
 ## Dependencies
 
 * utmp installed from PyPI
-* launchpadlib dep lazr.restfulclient installed via `pip install bzr+lp:lazr.restfulclient`
-* launchpadlib dep cryptography deps libssl-dev, libffi-dev, python3-dev installed via apt
+* launchpadlib dep lazr.restfulclient installed via
+  `pip install bzr+lp:lazr.restfulclient`
+* launchpadlib dep cryptography deps libssl-dev, libffi-dev, python3-dev
+  installed via apt
 * launchpadlib installed from PyPI
+* lib/python3.5/site-packages/oauth/oauth.py modified to work with Python 3
 
 
 ## TODO
@@ -36,6 +39,7 @@ import os
 import platform
 import time
 
+from launchpadlib.launchpad import Launchpad
 import utmp
 
 # Set `wtmp` file path.
@@ -136,16 +140,31 @@ def pluralise(word, count):
 def log_could_access(path):
     """Create or append to log of users who could access system."""
     # https://docs.python.org/3/tutorial/inputoutput.html
+    # Log in to Launchpad anonymously.
+    launchpad = Launchpad.login_anonymously(
+        "access_audit", "production", version="devel")
+    print(launchpad.bugs[1].title) # DEBUG
     print("Path: {}".format(path)) # DEBUG
     keys = []
     for key_file in os.listdir(KEY_DIR):
         with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as in_file:
             for key in in_file:
+                parts = key.split()
+                # print("Parts: {}".format(len(parts))) # DEBUG
+                if parts:
+                    print(parts[2:]) # DEBUG
+                    if len(parts[-1]) > 3: # Problem when not "lp:" and <= 3.
+                        print(parts[-1][:3]) # DEBUG
+                        if parts[-1][:3] == "lp:":
+                            username = launchpad.people[parts[-1][3:]].display_name
+                        else:
+                            username = parts[2]
+                        print("Username: {}".format(username))
                 if key not in keys:
                     keys.append(key)
     path.writelines(keys)
     path.close()
-    print("Key: {}".format(keys[0]))
+    print("Key: {}".format(keys[0])) # DEBUG
 
 def time_debug(days, log_buffer): # DEBUG
     print("Days: {}".format(days))
@@ -174,3 +193,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
