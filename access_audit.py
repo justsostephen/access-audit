@@ -10,6 +10,7 @@
 * Detail users that *did* access envs
 * Run locally or on MAAS nodes?
 * Schedule run and report email w/ cron
+* https://docs.python.org/3/tutorial/inputoutput.html
 
 
 ## Dependencies
@@ -25,8 +26,10 @@
 
 ## TODO
 
-* Could access logging
+* Could access logging (comment `log_could_access`)
+* Add `--could` path arg
 * Could access querying
+* Launchpad exception handling
 """
 
 __version__ = "0.1.0"
@@ -34,6 +37,7 @@ __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 
 import argparse
 import calendar # DEBUG
+import csv
 import datetime
 import os
 import platform
@@ -139,32 +143,30 @@ def pluralise(word, count):
 
 def log_could_access(path):
     """Create or append to log of users who could access system."""
-    # https://docs.python.org/3/tutorial/inputoutput.html
     # Log in to Launchpad anonymously.
     launchpad = Launchpad.login_anonymously(
         "access_audit", "production", version="devel")
-    print(launchpad.bugs[1].title) # DEBUG
-    print("Path: {}".format(path)) # DEBUG
-    keys = []
+    # print("Path: {}".format(path)) # DEBUG
+    timestamp = time.time()
+    human_timestamp = datetime.datetime.fromtimestamp(timestamp)
+    users = [timestamp, human_timestamp]
     for key_file in os.listdir(KEY_DIR):
         with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as in_file:
             for key in in_file:
                 parts = key.split()
-                # print("Parts: {}".format(len(parts))) # DEBUG
                 if parts:
                     print(parts[2:]) # DEBUG
-                    if len(parts[-1]) > 3: # Problem when not "lp:" and <= 3.
-                        print(parts[-1][:3]) # DEBUG
-                        if parts[-1][:3] == "lp:":
-                            username = launchpad.people[parts[-1][3:]].display_name
-                        else:
-                            username = parts[2]
-                        print("Username: {}".format(username))
-                if key not in keys:
-                    keys.append(key)
-    path.writelines(keys)
+                    if len(parts[-1]) > 3 and parts[-1][:3] == "lp:":
+                        lp_name = parts[-1][3:]
+                        username = launchpad.people[lp_name].display_name
+                    else:
+                        username = parts[2]
+                    print("Username: {}".format(username)) # DEBUG
+                    if username not in users:
+                        users.append(username)
+    writer = csv.writer(path)
+    writer.writerow(users)
     path.close()
-    print("Key: {}".format(keys[0])) # DEBUG
 
 def time_debug(days, log_buffer): # DEBUG
     print("Days: {}".format(days))
