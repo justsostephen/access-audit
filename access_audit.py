@@ -26,10 +26,9 @@
 
 ## TODO
 
-* Could access logging (comment `log_could_access`)
-* Add `--could` path arg
 * Could access querying
 * Launchpad exception handling
+* README
 """
 
 __version__ = "0.1.0"
@@ -46,6 +45,8 @@ import time
 from launchpadlib.launchpad import Launchpad
 import utmp
 
+# Set default query duration.
+QUERY_DAYS = 30
 # Set `wtmp` file path.
 # WTMP = "/var/log/wtmp"
 WTMP = "../resources/wtmp-zag"
@@ -65,18 +66,27 @@ def parse_arguments():
     group = parser.add_mutually_exclusive_group()
     # Populate argument group.
     group.add_argument(
-        "-c", "--could", type=days, nargs="?", const=30, metavar="days",
+        "-c", "--could", type=days, nargs="?", const=QUERY_DAYS, metavar="days",
         help=("list users that *could* access system during specified number "
-              "of days (default: %(const)s)"))
+              "of days (default: %(const)s; use `--path` option to override "
+              "default log file location)"))
     group.add_argument(
-        "-d", "--did", type=days, nargs="?", const=30, metavar="days",
+        "-d", "--did", type=days, nargs="?", const=QUERY_DAYS, metavar="days",
         help=("list users that *did* access system during specified number of "
               "days (default: %(const)s)"))
+    # group.add_argument(
+        # "-l", "--log", type=argparse.FileType("a"), nargs="?",
+        # const=LOG_DEFAULT, metavar="path",
+        # help=("create or append to specified log of users who could access "
+              # "system (default: %(const)s)"))
     group.add_argument(
-        "-l", "--log", type=argparse.FileType("a"), nargs="?",
-        const=LOG_DEFAULT, metavar="path",
-        help=("create or append to specified log of users who could access "
-              "system (default: %(const)s)"))
+        "-l", "--log", action="store_true",
+        help=("create or append to log of users who could access system (use "
+              "`--path` option to override default log file location)"))
+    parser.add_argument(
+        "-p", "--path", default=LOG_DEFAULT, metavar="path",
+        help=("specify alternative log path for `--could` or `--log` options, "
+              "overriding the default (%(default)s)"))
     # Parse and return arguments, along with usage.
     args = parser.parse_args()
     return args, parser.format_usage()
@@ -91,8 +101,9 @@ def days(days):
         raise argparse.ArgumentTypeError(message)
     return days
 
-def query_could_access(days):
+def query_could_access(days, path):
     print("Days: {}".format(days)) # DEBUG
+    print("Path: {}".format(path)) # DEBUG
 
 def query_did_access(days):
     """Query wtmp file for users that *did* access system during specified
@@ -146,27 +157,33 @@ def log_could_access(path):
     # Log in to Launchpad anonymously.
     launchpad = Launchpad.login_anonymously(
         "access_audit", "production", version="devel")
-    # print("Path: {}".format(path)) # DEBUG
+    # Define timestamp variables.
     timestamp = time.time()
     human_timestamp = datetime.datetime.fromtimestamp(timestamp)
+    # Initialise log entry list.
     users = [timestamp, human_timestamp]
+    # Iterate through key files and extract usernames from entries.
     for key_file in os.listdir(KEY_DIR):
         with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as in_file:
             for key in in_file:
                 parts = key.split()
                 if parts:
                     print(parts[2:]) # DEBUG
+                    # If key entry contains a Launchpad ID, query LP for
+                    # username, otherwise use entry comment.
                     if len(parts[-1]) > 3 and parts[-1][:3] == "lp:":
-                        lp_name = parts[-1][3:]
-                        username = launchpad.people[lp_name].display_name
+                        lp_id = parts[-1][3:]
+                        username = launchpad.people[lp_id].display_name
                     else:
                         username = parts[2]
                     print("Username: {}".format(username)) # DEBUG
+                    # Compile log entry.
                     if username not in users:
                         users.append(username)
-    writer = csv.writer(path)
-    writer.writerow(users)
-    path.close()
+    # Write CSV log entry.
+    with open(path, "a", newline="") as out_file:
+        writer = csv.writer(out_file)
+        writer.writerow(users)
 
 def time_debug(days, log_buffer): # DEBUG
     print("Days: {}".format(days))
@@ -185,11 +202,11 @@ def main():
     print(args) # DEBUG
     # If an argument was passed, call related function, otherwise output usage.
     if args.could:
-        query_could_access(args.could)
+        query_could_access(args.could, args.path)
     elif args.did:
         query_did_access(args.did)
     elif args.log:
-        log_could_access(args.log)
+        log_could_access(args.path)
     else:
         print(usage)
 
