@@ -11,6 +11,9 @@
 * Run locally or on MAAS nodes?
 * Schedule run and report email w/ cron
 * https://docs.python.org/3/tutorial/inputoutput.html
+* Use keys from /var/lib/misc/ssh-rsa-shadow
+* Clean up keys (bootstack and jujumanage users, /etc/ssh/user-authorized-keys)
+* Cross reference user account and real names using `getent passwd <user>`
 
 
 ## Dependencies
