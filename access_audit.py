@@ -11,8 +11,9 @@
 * Run locally or on MAAS nodes?
 * Schedule run and report email w/ cron
 * https://docs.python.org/3/tutorial/inputoutput.html
-* Use keys from /var/lib/misc/ssh-rsa-shadow
-* Clean up keys (bootstack and jujumanage users, /etc/ssh/user-authorized-keys)
+* Use keys from "/var/lib/misc/ssh-rsa-shadow"
+* Clean up keys (bootstack and jujumanage users,
+  "/etc/ssh/user-authorized-keys")
 * Cross reference user account and real names using `getent passwd <user>`
 
 
@@ -24,13 +25,17 @@
 * launchpadlib dep cryptography deps libssl-dev, libffi-dev, python3-dev
   installed via apt
 * launchpadlib installed from PyPI
-* lib/python3.5/site-packages/oauth/oauth.py modified to work with Python 3
+* "lib/python3.5/site-packages/oauth/oauth.py" modified to work with Python 3
+* getent installed via `python setup.py install` after replacing `file()` with
+  `open()` on line 9 of "resources/getent-0.2/setup.py"
 
 
 ## TODO
 
-* Could access querying
-* Launchpad exception handling
+* Implement getent querying
+* Utilise getent querying in `query_did_access()`
+* Replace LP querying with getent querying in `log_could_access()`
+* Implement `query_could_access()`
 * README
 """
 
@@ -50,10 +55,10 @@ import utmp
 
 # Set default query duration.
 QUERY_DAYS = 30
-# Set `wtmp` file path.
+# Set "wtmp" file path.
 # WTMP = "/var/log/wtmp"
 WTMP = "../resources/wtmp-zag"
-# Set `user-authorized-keys` dir path.
+# Set "user-authorized-keys" dir path.
 # KEY_DIR = "/etc/ssh/user-authorized-keys"
 KEY_DIR = "../resources/user-authorized-keys-zag"
 # Set default "could access" log path.
@@ -69,12 +74,14 @@ def parse_arguments():
     group = parser.add_mutually_exclusive_group()
     # Populate argument group.
     group.add_argument(
-        "-c", "--could", type=days, nargs="?", const=QUERY_DAYS, metavar="days",
+        "-c", "--could", type=number_of_days,
+        nargs="?", const=QUERY_DAYS, metavar="days",
         help=("list users that *could* access system during specified number "
               "of days (default: %(const)s; use `--path` option to override "
               "default log file location)"))
     group.add_argument(
-        "-d", "--did", type=days, nargs="?", const=QUERY_DAYS, metavar="days",
+        "-d", "--did", type=number_of_days,
+        nargs="?", const=QUERY_DAYS, metavar="days",
         help=("list users that *did* access system during specified number of "
               "days (default: %(const)s)"))
     # group.add_argument(
@@ -94,7 +101,7 @@ def parse_arguments():
     args = parser.parse_args()
     return args, parser.format_usage()
 
-def days(days):
+def number_of_days(days):
     """Check validity of `days` command line arguments."""
     # Ensure `days` is a positive integer.
     days = int(days)
@@ -105,17 +112,19 @@ def days(days):
     return days
 
 def query_could_access(days, path):
+    """Query log for users that *could* access system during specified period.
+    """
     print("Days: {}".format(days)) # DEBUG
     print("Path: {}".format(path)) # DEBUG
 
 def query_did_access(days):
-    """Query wtmp file for users that *did* access system during specified
+    """Query "wtmp" file for users that *did* access system during specified
     period.
     """
     # Define time variables.
     query_time = time.time() - days * 86400
     human_query_time = datetime.datetime.fromtimestamp(query_time)
-    # Parse wtmp file and create list of users.
+    # Parse "wtmp" file and create list of users.
     users = []
     with open(WTMP, "rb") as access_log:
         log_buffer = access_log.read()
@@ -136,7 +145,7 @@ def query_did_access(days):
                       human_query_time))
         for user in users:
             print(user)
-        print() # Is there a cleaner way to achieve this newline?
+        print() # DEBUG: Is there a cleaner way to achieve this newline?
     else:
         print("{0} has not been accessed in the last {1} (since {2}).\n"
               .format(platform.node(),
@@ -167,7 +176,7 @@ def log_could_access(path):
     users = [timestamp, human_timestamp]
     # Iterate through key files and extract usernames from entries.
     for key_file in os.listdir(KEY_DIR):
-        with open("{}{}{}".format(KEY_DIR, os.sep, key_file)) as in_file:
+        with open(os.path.join(KEY_DIR, key_file)) as in_file:
             for key in in_file:
                 parts = key.split()
                 if parts:
@@ -189,6 +198,7 @@ def log_could_access(path):
         writer.writerow(users)
 
 def time_debug(days, log_buffer): # DEBUG
+    """Test output of various time related methods."""
     print("Days: {}".format(days))
     print("time.ctime(): {}".format(time.ctime()))
     print("time.gmtime(): {}".format(time.gmtime()))
@@ -201,9 +211,10 @@ def time_debug(days, log_buffer): # DEBUG
         break
 
 def main():
+    """If an argument was passed, call related function, otherwise output usage.
+    """
     args, usage = parse_arguments()
     print(args) # DEBUG
-    # If an argument was passed, call related function, otherwise output usage.
     if args.could:
         query_could_access(args.could, args.path)
     elif args.did:
@@ -215,4 +226,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
