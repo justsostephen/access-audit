@@ -32,11 +32,10 @@
 
 ## TODO
 
-* Implement getent querying
-* Utilise getent querying in `query_did_access()`
-* Replace LP querying with getent querying in `log_could_access()`
+* Group output by date
 * Implement `query_could_access()`
 * README
+* Clean up DEBUG and REMOVE
 """
 
 __version__ = "0.1.0"
@@ -50,7 +49,7 @@ import os
 import platform
 import time
 
-from launchpadlib.launchpad import Launchpad
+import getent
 import utmp
 
 # Set default query duration.
@@ -58,9 +57,9 @@ QUERY_DAYS = 30
 # Set "wtmp" file path.
 # WTMP = "/var/log/wtmp"
 WTMP = "../resources/wtmp-zag"
-# Set "user-authorized-keys" dir path.
-# KEY_DIR = "/etc/ssh/user-authorized-keys"
-KEY_DIR = "../resources/user-authorized-keys-zag"
+# Set "ssh-rsa-shadow" file path.
+# KEYS = "/var/lib/misc/ssh-rsa-shadow"
+KEYS = "../resources/ssh-rsa-shadow-zag"
 # Set default "could access" log path.
 # LOG_DEFAULT = "/var/log/could.log"
 LOG_DEFAULT = "../resources/could.log"
@@ -131,10 +130,12 @@ def query_did_access(days):
     for entry in utmp.read(log_buffer):
         # Add log entry second and microsecond fields, compare with query time.
         if entry.sec + entry.usec * .000001 > query_time:
-            print(entry.time, entry.type, entry)
+            # print(entry.time, entry.type, entry) # DEBUG
             user = entry.user
             if user and user not in users:
                 users.append(user)
+    users.append("stephen") # DEBUG
+    users.append("gdm") # DEBUG
     # Output query results.
     if users:
         print("\n{0} {1} accessed {2} in the last {3} (since {4}):"
@@ -144,7 +145,7 @@ def query_did_access(days):
                       pluralise("day", days),
                       human_query_time))
         for user in users:
-            print(user)
+            print(query_name(user))
         print() # DEBUG: Is there a cleaner way to achieve this newline?
     else:
         print("{0} has not been accessed in the last {1} (since {2}).\n"
@@ -152,6 +153,13 @@ def query_did_access(days):
                       pluralise("day", days),
                       human_query_time))
     # time_debug(days, log_buffer) # DEBUG
+
+def query_name(user):
+    """Query password database for real name."""
+    if getent.passwd(user):
+        real_name = getent.passwd(user).gecos.split(",")[0]
+        return real_name
+    return user
 
 def pluralise(word, count):
     """Return singular or plural form of given word."""
@@ -166,32 +174,20 @@ def pluralise(word, count):
 
 def log_could_access(path):
     """Create or append to log of users who could access system."""
-    # Log in to Launchpad anonymously.
-    launchpad = Launchpad.login_anonymously(
-        "access_audit", "production", version="devel")
     # Define timestamp variables.
     timestamp = time.time()
     human_timestamp = datetime.datetime.fromtimestamp(timestamp)
     # Initialise log entry list.
     users = [timestamp, human_timestamp]
-    # Iterate through key files and extract usernames from entries.
-    for key_file in os.listdir(KEY_DIR):
-        with open(os.path.join(KEY_DIR, key_file)) as in_file:
-            for key in in_file:
-                parts = key.split()
-                if parts:
-                    print(parts[2:]) # DEBUG
-                    # If key entry contains a Launchpad ID, query LP for
-                    # username, otherwise use entry comment.
-                    if len(parts[-1]) > 3 and parts[-1][:3] == "lp:":
-                        lp_id = parts[-1][3:]
-                        username = launchpad.people[lp_id].display_name
-                    else:
-                        username = parts[2]
-                    print("Username: {}".format(username)) # DEBUG
-                    # Compile log entry.
-                    if username not in users:
-                        users.append(username)
+    # Iterate through keys, extract usernames and compile log entry.
+    with open(KEYS) as in_file:
+        for key in in_file:
+            parts = key.split(":")
+            if parts:
+                user = query_name(parts[0])
+                print("User: {}".format(user)) # DEBUG
+                if user not in users:
+                    users.append(user)
     # Write CSV log entry.
     with open(path, "a", newline="") as out_file:
         writer = csv.writer(out_file)
