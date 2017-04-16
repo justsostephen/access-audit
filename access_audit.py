@@ -15,6 +15,8 @@
 * Clean up keys (bootstack and jujumanage users,
   "/etc/ssh/user-authorized-keys")
 * Cross reference user account and real names using `getent passwd <user>`
+* "wtmp" files are currently rotated monthly with 1 months backlog kept; is this
+  appropriate?
 
 
 ## Dependencies
@@ -33,7 +35,7 @@
 ## TODO
 
 * Group output by date
-* Implement `query_could_access()`
+* Implement `query_could_access()` (support log rotation)
 * README
 * Clean up DEBUG and REMOVE
 """
@@ -45,6 +47,7 @@ import argparse
 import calendar # DEBUG
 import csv
 import datetime
+import glob
 import os
 import platform
 import time
@@ -54,15 +57,14 @@ import utmp
 
 # Set default query duration.
 QUERY_DAYS = 30
-# Set "wtmp" file path.
-# WTMP = "/var/log/wtmp"
-WTMP = "../resources/wtmp-zag"
+# Set system log path.
+# LOG_PATH = "/var/log"
+LOG_PATH = "../resources"
 # Set "ssh-rsa-shadow" file path.
 # KEYS = "/var/lib/misc/ssh-rsa-shadow"
 KEYS = "../resources/ssh-rsa-shadow-zag"
 # Set default "could access" log path.
-# LOG_DEFAULT = "/var/log/could.log"
-LOG_DEFAULT = "../resources/could.log"
+LOG_DEFAULT = os.path.join(LOG_PATH, "could.log")
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -117,25 +119,40 @@ def query_could_access(days, path):
     print("Path: {}".format(path)) # DEBUG
 
 def query_did_access(days):
-    """Query "wtmp" file for users that *did* access system during specified
+    """Query "wtmp" files for users that *did* access system during specified
     period.
     """
     # Define time variables.
     query_time = time.time() - days * 86400
     human_query_time = datetime.datetime.fromtimestamp(query_time)
-    # Parse "wtmp" file and create list of users.
-    users = []
-    with open(WTMP, "rb") as access_log:
-        log_buffer = access_log.read()
+    # Compile chronological list of "wtmp" files and read into buffer.
+    wtmp_files = glob.glob(os.path.join(LOG_PATH, "wtmp*"))
+    wtmp_files.sort(reverse=True)
+    log_buffer = b""
+    for wtmp_file in wtmp_files:
+        with open(wtmp_file, "rb") as access_log:
+            log_buffer += access_log.read()
+    # Parse buffer and create dict of access records.
+    records = {}
+    # Parse buffer and create list of users. # REMOVE
+    users = [] # REMOVE
     for entry in utmp.read(log_buffer):
-        # Add log entry second and microsecond fields, compare with query time.
-        if entry.sec + entry.usec * .000001 > query_time:
+        # Compute log entry time and date.
+        entry_time = entry.sec + entry.usec * .000001
+        entry_date = datetime.date.fromtimestamp(entry_time) # Best way?
+        if entry_time > query_time:
             # print(entry.time, entry.type, entry) # DEBUG
             user = entry.user
-            if user and user not in users:
-                users.append(user)
-    users.append("stephen") # DEBUG
-    users.append("gdm") # DEBUG
+            if user:
+                if entry_date not in records:
+                    records[entry_date] = [user]
+                elif user not in records[entry_date]:
+                    records[entry_date].append(user)
+    print("Records: {}".format(records)) # DEBUG
+            # if user and user not in users:
+                # users.append(user)
+    # users.append("stephen") # DEBUG
+    # users.append("gdm") # DEBUG
     # Output query results.
     if users:
         print("\n{0} {1} accessed {2} in the last {3} (since {4}):"
