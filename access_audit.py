@@ -125,8 +125,11 @@ def query_did_access(days):
     # Define time variables.
     query_time = time.time() - days * 86400
     human_query_time = datetime.datetime.fromtimestamp(query_time)
-    # Compile chronological list of "wtmp" files and read into buffer.
-    wtmp_files = glob.glob(os.path.join(LOG_PATH, "wtmp*"))
+    # Compile chronological list of relevant "wtmp" files and read into buffer.
+    wtmp_files = []
+    for wtmp_file in glob.glob(os.path.join(LOG_PATH, "wtmp*")):
+        if os.path.getmtime(wtmp_file) > query_time:
+            wtmp_files.append(wtmp_file)
     wtmp_files.sort(reverse=True)
     log_buffer = b""
     for wtmp_file in wtmp_files:
