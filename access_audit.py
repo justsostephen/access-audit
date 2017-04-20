@@ -148,10 +148,19 @@ def query_did_access(days):
             user = entry.user
             if user:
                 if entry_date not in records:
-                    records[entry_date] = [user]
-                elif user not in records[entry_date]:
-                    records[entry_date].append(user)
+                    records[entry_date] = {"start": entry_date,
+                                           "end": entry_date,
+                                           "users": [user]}
+                elif user not in records[entry_date]["users"]:
+                    records[entry_date]["users"].append(user)
+    print()
     print("Records: {}".format(records)) # DEBUG
+    print()
+    print("Sorted items: {}".format(sorted(records.items())))
+    print()
+    print("Sorted values: {}".format(
+        sorted(records.values(), key=lambda x: x["start"])))
+    print()
             # if user and user not in users:
                 # users.append(user)
     # users.append("stephen") # DEBUG
