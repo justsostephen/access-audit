@@ -61,10 +61,12 @@ QUERY_DAYS = 30
 # LOG_PATH = "/var/log"
 LOG_PATH = "../resources"
 # Set "ssh-rsa-shadow" file path.
-# KEYS = "/var/lib/misc/ssh-rsa-shadow"
-KEYS = "../resources/ssh-rsa-shadow-zag"
+# KEYS_FILE = "/var/lib/misc/ssh-rsa-shadow"
+KEYS_FILE = "../resources/ssh-rsa-shadow-zag"
 # Set default "could access" log path.
 LOG_DEFAULT = os.path.join(LOG_PATH, "could.log")
+# Set `getent passwd` output file path: # REMOVE
+GETENT_OUT = "../resources/getent-passwd-zag" # REMOVE
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -85,11 +87,6 @@ def parse_arguments():
         nargs="?", const=QUERY_DAYS, metavar="days",
         help=("list users that *did* access system during specified number of "
               "days (default: %(const)s)"))
-    # group.add_argument(
-        # "-l", "--log", type=argparse.FileType("a"), nargs="?",
-        # const=LOG_DEFAULT, metavar="path",
-        # help=("create or append to specified log of users who could access "
-              # "system (default: %(const)s)"))
     group.add_argument(
         "-l", "--log", action="store_true",
         help=("create or append to log of users who could access system (use "
@@ -163,8 +160,9 @@ def query_did_access(days):
     print()
             # if user and user not in users:
                 # users.append(user)
-    # users.append("stephen") # DEBUG
-    # users.append("gdm") # DEBUG
+    users.append("stephen") # DEBUG
+    users.append("justsostephen") # DEBUG
+    users.append("gdm") # DEBUG
     # Output query results.
     if users:
         print("\n{0} {1} accessed {2} in the last {3} (since {4}):"
@@ -174,7 +172,16 @@ def query_did_access(days):
                       pluralise("day", days),
                       human_query_time))
         for user in users:
-            print(query_name(user))
+            password_db_entry = getent_passwd(user) # DEBUG: `password_db_entry = getent.passwd(user)`
+            name_not_found = "{} (real name not found)".format(user)
+            if password_db_entry:
+                real_name = password_db_entry.gecos.split(",")[0]
+                if real_name:
+                    print(real_name)
+                else:
+                    print(name_not_found)
+            else:
+                print(name_not_found)
         print() # DEBUG: Is there a cleaner way to achieve this newline?
     else:
         print("{0} has not been accessed in the last {1} (since {2}).\n"
@@ -182,13 +189,6 @@ def query_did_access(days):
                       pluralise("day", days),
                       human_query_time))
     # time_debug(days, log_buffer) # DEBUG
-
-def query_name(user):
-    """Query password database for real name."""
-    if getent.passwd(user):
-        real_name = getent.passwd(user).gecos.split(",")[0]
-        return real_name
-    return user
 
 def pluralise(word, count):
     """Return singular or plural form of given word."""
@@ -208,15 +208,26 @@ def log_could_access(path):
     human_timestamp = datetime.datetime.fromtimestamp(timestamp)
     # Initialise log entry list.
     users = [timestamp, human_timestamp]
-    # Iterate through keys, extract usernames and compile log entry.
-    with open(KEYS) as in_file:
-        for key in in_file:
+    # Compile list of users with SSH keys.
+    users_with_keys = []
+    with open(KEYS_FILE) as keys:
+        for key in keys:
             parts = key.split(":")
             if parts:
-                user = query_name(parts[0])
-                print("User: {}".format(user)) # DEBUG
-                if user not in users:
-                    users.append(user)
+                user = parts[0]
+                if user not in users_with_keys:
+                    users_with_keys.append(user)
+    # Cross reference password database entries with list of users with SSH
+    # keys, extract real names and compile log entry.
+    for entry in getent_passwd(): # DEBUG: `for entry in getent.passwd():`
+        if entry.name in users_with_keys:
+            real_name = entry.gecos.split(",")[0]
+            if real_name:
+                if real_name not in users:
+                    users.append(real_name)
+            else:
+                if entry.name not in users:
+                    users.append("{} (real name not found)".format(entry.name))
     # Write CSV log entry.
     with open(path, "a", newline="") as out_file:
         writer = csv.writer(out_file)
@@ -231,9 +242,39 @@ def time_debug(days, log_buffer): # DEBUG
     print("time.localtime(): {}".format(time.localtime()))
     print("time.mktime(time.localtime()): {}".format(time.mktime(time.localtime())))
     print("time.time(): {}".format(time.time()))
-    for entry in utmp.read(log_buffer):
-        print("Entry time: {}".format(entry.time))
-        break
+    print("Entry time: {}".format(list(utmp.read(log_buffer))[0].time))
+
+class PasswordDbEntry:
+    """Password database entry data structure for `getent.passwd()` emulation
+    using output file.
+    """
+    def __init__(self, entry_parts):
+        self.name = entry_parts[0]
+        self.password = entry_parts[1]
+        self.uid = entry_parts[2]
+        self.gid = entry_parts[3]
+        self.gecos = entry_parts[4]
+        self.dir = entry_parts[5]
+        self.shell = entry_parts[6]
+
+def getent_passwd(user=None):
+    """Emulate `getent.passwd()` functionality using output file."""
+    with open(GETENT_OUT) as entries:
+        if user:
+            for entry in entries:
+                parts = entry.split(":")
+                if parts[0] == user:
+                    user_entry = PasswordDbEntry(parts)
+                    return user_entry
+            user_entry = None
+            return user_entry
+        else:
+            users = []
+            for entry in entries:
+                parts = entry.split(":")
+                user_entry = PasswordDbEntry(parts)
+                users.append(user_entry)
+            return users
 
 def main():
     """If an argument was passed, call related function, otherwise output usage.
