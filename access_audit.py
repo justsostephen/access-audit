@@ -34,10 +34,10 @@
 
 ## TODO
 
-* Implement `query_could_access()`
-* README
+* Refactor
 * Clean up imports
 * Clean up DEBUG and REMOVE
+* README
 """
 
 __version__ = "0.1.0"
@@ -112,8 +112,94 @@ def number_of_days(days):
 def query_could_access(days, path):
     """Query log for users that *could* access system during specified period.
     """
-    print("Days: {}".format(days)) # DEBUG
-    print("Path: {}".format(path)) # DEBUG
+    # Define time variables.
+    query_time = time.time() - days * 86400
+    human_query_time = datetime.fromtimestamp(query_time)
+    # Compile chronological list of relevant log files and read into buffer.
+    log_files = []
+    for log_file in glob.glob("{}*".format(path)):
+        if os.path.getmtime(log_file) > query_time:
+            log_files.append(log_file)
+    log_files.sort(reverse=True)
+    log_buffer = []
+    for log_file in log_files:
+        with open(log_file) as access_log:
+            for entry in access_log:
+                log_buffer.append(entry)
+    # Parse buffer, create list of users and dict of access records.
+    users = []
+    records = {}
+    for entry in csv.reader(log_buffer):
+        # Extract log entry time and date.
+        entry_time = float(entry[0])
+        entry_date = date.fromtimestamp(entry_time)
+        if entry_time > query_time:
+            entry_users = entry[2:]
+            for user in entry_users:
+                if user not in users:
+                    users.append(user)
+            if entry_date not in records:
+                records[entry_date] = {"start": entry_date,
+                                       "end": entry_date,
+                                       "users": entry_users}
+            else:
+                for user in entry_users:
+                    if user not in records[entry_date]["users"]:
+                        records[entry_date]["users"].append(user)
+    # Create list of sorted records. # DUP START
+    sorted_records = sorted(records.values(),
+                            key=lambda record_value: record_value["start"])
+    # Sort user lists for later comparison.
+    for record in sorted_records:
+        record["users"].sort()
+    # Merge records for consecutive days with the same users.
+    merged_records = []
+    for record in sorted_records:
+        if merged_records:
+            last_record = merged_records[-1]
+            if record["start"] == last_record["end"] + timedelta(1):
+                if record["users"] == last_record["users"]:
+                    last_record["end"] = record["start"]
+                else:
+                    merged_records.append(record)
+            else:
+                merged_records.append(record)
+        else:
+            merged_records.append(record) # DUP END
+    # Output query results. # TERMINOLOGY START
+    if users:
+        # print("\n{0} accessed {1} in the last {2} (since {3}):"
+        print("\n{0} had access to {1} in the last {2} (since {3}):"
+              .format(pluralise("user", len(users)),
+                      platform.node(),
+                      pluralise("day", days),
+                      human_query_time))
+        for record in merged_records:
+            rec_start, rec_end, rec_users = record.values()
+            if rec_start == rec_end:
+                period = "on {}".format(rec_start)
+            else:
+                period = "between {} and {}".format(rec_start, rec_end)
+            print("\n{} {}:".format(pluralise("user", len(rec_users)), period))
+            for rec_user in rec_users:
+                # DEBUG: `password_db_entry = getent.passwd(rec_user)`
+                password_db_entry = getent_passwd(rec_user)
+                name_not_found = "{} (real name not found)".format(rec_user)
+                if password_db_entry:
+                    real_name = password_db_entry.gecos.split(",")[0]
+                    if real_name:
+                        print(real_name)
+                    else:
+                        print(name_not_found)
+                else:
+                    print(name_not_found)
+        print()
+    else:
+        # print("\n{0} has not been accessed in the last {1} (since {2}).\n"
+        print("\nNo users have had access to {0} in the last {1} (since {2}).\n"
+              .format(platform.node(),
+                      pluralise("day", days),
+                      human_query_time)) # TERMINOLOGY END
 
 def query_did_access(days):
     """Query "wtmp" files for users that *did* access system during specified
