@@ -10,11 +10,10 @@
 * Detail users that *did* access envs
 * Run locally or on MAAS nodes?
 * Schedule run and report email w/ cron
-* https://docs.python.org/3/tutorial/inputoutput.html
 * Use keys from "/var/lib/misc/ssh-rsa-shadow"
 * Clean up keys (bootstack and jujumanage users,
   "/etc/ssh/user-authorized-keys")
-* Cross reference user account and real names using `getent passwd <user>`
+* Cross reference password database with keys
 * "wtmp" files are currently rotated monthly with 1 months backlog kept; is this
   appropriate?
 
@@ -146,26 +145,7 @@ def query_could_access(days, path):
                 for user in entry_users:
                     if user not in records[entry_date]["users"]:
                         records[entry_date]["users"].append(user)
-    # Create list of sorted records. # DUP START
-    sorted_records = sorted(records.values(),
-                            key=lambda record_value: record_value["start"])
-    # Sort user lists for later comparison.
-    for record in sorted_records:
-        record["users"].sort()
-    # Merge records for consecutive days with the same users.
-    merged_records = []
-    for record in sorted_records:
-        if merged_records:
-            last_record = merged_records[-1]
-            if record["start"] == last_record["end"] + timedelta(1):
-                if record["users"] == last_record["users"]:
-                    last_record["end"] = record["start"]
-                else:
-                    merged_records.append(record)
-            else:
-                merged_records.append(record)
-        else:
-            merged_records.append(record) # DUP END
+    merged_records = sort_and_merge(records)
     # Output query results. # TERMINOLOGY START
     if users:
         # print("\n{0} accessed {1} in the last {2} (since {3}):"
@@ -200,6 +180,30 @@ def query_could_access(days, path):
               .format(platform.node(),
                       pluralise("day", days),
                       human_query_time)) # TERMINOLOGY END
+
+def sort_and_merge(records):
+    """Sort and merge access records."""
+    # Create list of sorted records.
+    sorted_records = sorted(records.values(),
+                            key=lambda record_value: record_value["start"])
+    # Sort user lists for later comparison.
+    for record in sorted_records:
+        record["users"].sort()
+    # Merge records for consecutive days with the same users.
+    merged_records = []
+    for record in sorted_records:
+        if merged_records:
+            last_record = merged_records[-1]
+            if record["start"] == last_record["end"] + timedelta(1):
+                if record["users"] == last_record["users"]:
+                    last_record["end"] = record["start"]
+                else:
+                    merged_records.append(record)
+            else:
+                merged_records.append(record)
+        else:
+            merged_records.append(record)
+    return merged_records
 
 def query_did_access(days):
     """Query "wtmp" files for users that *did* access system during specified
@@ -236,26 +240,7 @@ def query_did_access(days):
                                            "users": [user]}
                 elif user not in records[entry_date]["users"]:
                     records[entry_date]["users"].append(user)
-    # Create list of sorted records.
-    sorted_records = sorted(records.values(),
-                            key=lambda record_value: record_value["start"])
-    # Sort user lists for later comparison.
-    for record in sorted_records:
-        record["users"].sort()
-    # Merge records for consecutive days with the same users.
-    merged_records = []
-    for record in sorted_records:
-        if merged_records:
-            last_record = merged_records[-1]
-            if record["start"] == last_record["end"] + timedelta(1):
-                if record["users"] == last_record["users"]:
-                    last_record["end"] = record["start"]
-                else:
-                    merged_records.append(record)
-            else:
-                merged_records.append(record)
-        else:
-            merged_records.append(record)
+    merged_records = sort_and_merge(records)
     # Output query results.
     if users:
         print("\n{0} accessed {1} in the last {2} (since {3}):"
