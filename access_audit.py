@@ -155,7 +155,9 @@ def query_could_access(days, path):
                       pluralise("day", days),
                       human_query_time))
         for record in merged_records:
-            rec_start, rec_end, rec_users = record.values()
+            rec_start, rec_end, rec_users = (record["start"],
+                                             record["end"],
+                                             record["users"])
             if rec_start == rec_end:
                 period = "on {}".format(rec_start)
             else:
@@ -249,7 +251,9 @@ def query_did_access(days):
                       pluralise("day", days),
                       human_query_time))
         for record in merged_records:
-            rec_start, rec_end, rec_users = record.values()
+            rec_start, rec_end, rec_users = (record["start"],
+                                             record["end"],
+                                             record["users"])
             if rec_start == rec_end:
                 period = "on {}".format(rec_start)
             else:
