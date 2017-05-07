@@ -43,7 +43,6 @@ __version__ = "0.1.0"
 __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 
 import argparse
-import calendar # DEBUG
 import csv
 from datetime import date, datetime, timedelta
 import glob
@@ -145,67 +144,9 @@ def query_could_access(days, path):
                 for user in entry_users:
                     if user not in records[entry_date]["users"]:
                         records[entry_date]["users"].append(user)
+    # Sort and merge records, output results.
     merged_records = sort_and_merge(records)
-    # Output query results. # TERMINOLOGY START
-    if users:
-        # print("\n{0} accessed {1} in the last {2} (since {3}):"
-        print("\n{0} had access to {1} in the last {2} (since {3}):"
-              .format(pluralise("user", len(users)),
-                      platform.node(),
-                      pluralise("day", days),
-                      human_query_time))
-        for record in merged_records:
-            rec_start, rec_end, rec_users = (record["start"],
-                                             record["end"],
-                                             record["users"])
-            if rec_start == rec_end:
-                period = "on {}".format(rec_start)
-            else:
-                period = "between {} and {}".format(rec_start, rec_end)
-            print("\n{} {}:".format(pluralise("user", len(rec_users)), period))
-            for rec_user in rec_users:
-                # DEBUG: `password_db_entry = getent.passwd(rec_user)`
-                password_db_entry = getent_passwd(rec_user)
-                name_not_found = "{} (real name not found)".format(rec_user)
-                if password_db_entry:
-                    real_name = password_db_entry.gecos.split(",")[0]
-                    if real_name:
-                        print(real_name)
-                    else:
-                        print(name_not_found)
-                else:
-                    print(name_not_found)
-        print()
-    else:
-        # print("\n{0} has not been accessed in the last {1} (since {2}).\n"
-        print("\nNo users have had access to {0} in the last {1} (since {2}).\n"
-              .format(platform.node(),
-                      pluralise("day", days),
-                      human_query_time)) # TERMINOLOGY END
-
-def sort_and_merge(records):
-    """Sort and merge access records."""
-    # Create list of sorted records.
-    sorted_records = sorted(records.values(),
-                            key=lambda record_value: record_value["start"])
-    # Sort user lists for later comparison.
-    for record in sorted_records:
-        record["users"].sort()
-    # Merge records for consecutive days with the same users.
-    merged_records = []
-    for record in sorted_records:
-        if merged_records:
-            last_record = merged_records[-1]
-            if record["start"] == last_record["end"] + timedelta(1):
-                if record["users"] == last_record["users"]:
-                    last_record["end"] = record["start"]
-                else:
-                    merged_records.append(record)
-            else:
-                merged_records.append(record)
-        else:
-            merged_records.append(record)
-    return merged_records
+    output_results("could", users, merged_records, days, human_query_time)
 
 def query_did_access(days):
     """Query "wtmp" files for users that *did* access system during specified
@@ -242,14 +183,45 @@ def query_did_access(days):
                                            "users": [user]}
                 elif user not in records[entry_date]["users"]:
                     records[entry_date]["users"].append(user)
+    # Sort and merge records, output results.
     merged_records = sort_and_merge(records)
-    # Output query results.
+    output_results("did", users, merged_records, days, human_query_time)
+
+def sort_and_merge(records):
+    """Sort and merge access records."""
+    # Create list of sorted records.
+    sorted_records = sorted(records.values(),
+                            key=lambda record_value: record_value["start"])
+    # Sort user lists for later comparison.
+    for record in sorted_records:
+        record["users"].sort()
+    # Merge records for consecutive days with the same users.
+    merged_records = []
+    for record in sorted_records:
+        if merged_records:
+            last_record = merged_records[-1]
+            if record["start"] == last_record["end"] + timedelta(1):
+                if record["users"] == last_record["users"]:
+                    last_record["end"] = record["start"]
+                else:
+                    merged_records.append(record)
+            else:
+                merged_records.append(record)
+        else:
+            merged_records.append(record)
+    return merged_records
+
+def output_results(query_type, users, merged_records, days, human_query_time):
+    """Output query results."""
     if users:
-        print("\n{0} accessed {1} in the last {2} (since {3}):"
-              .format(pluralise("user", len(users)),
-                      platform.node(),
-                      pluralise("day", days),
-                      human_query_time))
+        if query_type == "could":
+            summary = "\n{0} had access to {1} in the last {2} (since {3}):"
+        else:
+            summary = "\n{0} accessed {1} in the last {2} (since {3}):"
+        print(summary.format(pluralise("user", len(users)),
+                             platform.node(),
+                             pluralise("day", days),
+                             human_query_time))
         for record in merged_records:
             rec_start, rec_end, rec_users = (record["start"],
                                              record["end"],
@@ -273,11 +245,15 @@ def query_did_access(days):
                     print(name_not_found)
         print()
     else:
-        print("\n{0} has not been accessed in the last {1} (since {2}).\n"
-              .format(platform.node(),
-                      pluralise("day", days),
-                      human_query_time))
-    # time_debug(days, log_buffer) # DEBUG
+        if query_type == "could":
+            summary = ("\nNo users have had access to {0} in the last {1} "
+                       "(since {2}).\n")
+        else:
+            summary = ("\n{0} has not been accessed in the last {1} (since "
+                       "{2}).\n")
+        print(summary.format(platform.node(),
+                             pluralise("day", days),
+                             human_query_time))
 
 def pluralise(word, count):
     """Return singular or plural form of given word."""
@@ -313,17 +289,6 @@ def log_could_access(path):
     with open(path, "a", newline="") as out_file:
         writer = csv.writer(out_file)
         writer.writerow(users)
-
-def time_debug(days, log_buffer): # DEBUG
-    """Test output of various time related methods."""
-    print("Days: {}".format(days))
-    print("time.ctime(): {}".format(time.ctime()))
-    print("time.gmtime(): {}".format(time.gmtime()))
-    print("calendar.timegm(time.gmtime()): {}".format(calendar.timegm(time.gmtime())))
-    print("time.localtime(): {}".format(time.localtime()))
-    print("time.mktime(time.localtime()): {}".format(time.mktime(time.localtime())))
-    print("time.time(): {}".format(time.time()))
-    print("Entry time: {}".format(list(utmp.read(log_buffer))[0].time))
 
 class PasswordDbEntry:
     """Password database entry data structure for `getent.passwd()` emulation
@@ -361,7 +326,7 @@ def main():
     """If an argument was passed, call related function, otherwise output usage.
     """
     args, usage = parse_arguments()
-    print(args) # DEBUG
+    # print(args) # DEBUG
     if args.could:
         query_could_access(args.could, args.path)
     elif args.did:
