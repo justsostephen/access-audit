@@ -54,7 +54,7 @@ import getent
 import utmp
 
 # Set default query duration.
-QUERY_DAYS = 30
+QUERY_DAYS = 31
 # Set system log path.
 # LOG_PATH = "/var/log"
 LOG_PATH = "../resources"
@@ -110,15 +110,9 @@ def number_of_days(days):
 def query_could_access(days, path):
     """Query log for users that *could* access system during specified period.
     """
-    # Define time variables.
-    query_time = time.time() - days * 86400
-    human_query_time = datetime.fromtimestamp(query_time)
-    # Compile chronological list of relevant log files and read into buffer.
-    log_files = []
-    for log_file in glob.glob("{}*".format(path)):
-        if os.path.getmtime(log_file) > query_time:
-            log_files.append(log_file)
-    log_files.sort(reverse=True)
+    query_time, human_query_time = query_times(days)
+    log_files = compile_logs(path, query_time)
+    # Read log files into buffer.
     log_buffer = []
     for log_file in log_files:
         with open(log_file) as access_log:
@@ -148,22 +142,32 @@ def query_could_access(days, path):
     merged_records = sort_and_merge(records)
     output_results("could", users, merged_records, days, human_query_time)
 
-def query_did_access(days):
+def compile_logs(path, query_time):
+    """Compile chronological list of relevant log files."""
+    log_files = []
+    for log_file in glob.glob("{}*".format(path)):
+        if os.path.getmtime(log_file) > query_time:
+            log_files.append(log_file)
+    log_files.sort(reverse=True)
+    print("Logs: {}".format(log_files)) # DEBUG
+    return log_files
+
+def query_times(days):
+    """Define time variables."""
+    query_time = time.time() - days * 86400
+    human_query_time = datetime.fromtimestamp(query_time)
+    return query_time, human_query_time
+
+def query_did_access(days, path):
     """Query "wtmp" files for users that *did* access system during specified
     period.
     """
-    # Define time variables.
-    query_time = time.time() - days * 86400
-    human_query_time = datetime.fromtimestamp(query_time)
-    # Compile chronological list of relevant "wtmp" files and read into buffer.
-    wtmp_files = []
-    for wtmp_file in glob.glob(os.path.join(LOG_PATH, "wtmp*")):
-        if os.path.getmtime(wtmp_file) > query_time:
-            wtmp_files.append(wtmp_file)
-    wtmp_files.sort(reverse=True)
+    query_time, human_query_time = query_times(days)
+    log_files = compile_logs(path, query_time)
+    # Read log files into buffer.
     log_buffer = b""
-    for wtmp_file in wtmp_files:
-        with open(wtmp_file, "rb") as access_log:
+    for log_file in log_files:
+        with open(log_file, "rb") as access_log:
             log_buffer += access_log.read()
     # Parse buffer, create list of users and dict of access records.
     users = []
@@ -330,7 +334,7 @@ def main():
     if args.could:
         query_could_access(args.could, args.path)
     elif args.did:
-        query_did_access(args.did)
+        query_did_access(args.did, os.path.join(LOG_PATH, "wtmp"))
     elif args.log:
         log_could_access(args.path)
     else:
