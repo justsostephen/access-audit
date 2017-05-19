@@ -110,7 +110,8 @@ def number_of_days(days):
 def query_could_access(days, path):
     """Query log for users that *could* access system during specified period.
     """
-    query_time, human_query_time = query_times(days)
+    # Calculate query time and obtain list of log files.
+    query_time = time.time() - days * 86400
     log_files = compile_logs(path, query_time)
     # Read log files into buffer.
     log_buffer = []
@@ -140,29 +141,14 @@ def query_could_access(days, path):
                         records[entry_date]["users"].append(user)
     # Sort and merge records, output results.
     merged_records = sort_and_merge(records)
-    output_results("could", users, merged_records, days, human_query_time)
-
-def compile_logs(path, query_time):
-    """Compile chronological list of relevant log files."""
-    log_files = []
-    for log_file in glob.glob("{}*".format(path)):
-        if os.path.getmtime(log_file) > query_time:
-            log_files.append(log_file)
-    log_files.sort(reverse=True)
-    print("Logs: {}".format(log_files)) # DEBUG
-    return log_files
-
-def query_times(days):
-    """Define time variables."""
-    query_time = time.time() - days * 86400
-    human_query_time = datetime.fromtimestamp(query_time)
-    return query_time, human_query_time
+    output_results("could", len(users), merged_records, days, query_time)
 
 def query_did_access(days, path):
     """Query "wtmp" files for users that *did* access system during specified
     period.
     """
-    query_time, human_query_time = query_times(days)
+    # Calculate query time and obtain list of log files.
+    query_time = time.time() - days * 86400
     log_files = compile_logs(path, query_time)
     # Read log files into buffer.
     log_buffer = b""
@@ -178,6 +164,7 @@ def query_did_access(days, path):
         entry_date = date.fromtimestamp(entry_time)
         if entry_time > query_time:
             user = entry.user
+            # Check if entry "user" field is populated.
             if user:
                 if user not in users:
                     users.append(user)
@@ -189,7 +176,17 @@ def query_did_access(days, path):
                     records[entry_date]["users"].append(user)
     # Sort and merge records, output results.
     merged_records = sort_and_merge(records)
-    output_results("did", users, merged_records, days, human_query_time)
+    output_results("did", len(users), merged_records, days, query_time)
+
+def compile_logs(path, query_time):
+    """Compile chronological list of relevant log files."""
+    log_files = []
+    for log_file in glob.glob("{}*".format(path)):
+        if os.path.getmtime(log_file) > query_time:
+            log_files.append(log_file)
+    log_files.sort(reverse=True)
+    print("Logs: {}".format(log_files)) # DEBUG
+    return log_files
 
 def sort_and_merge(records):
     """Sort and merge access records."""
@@ -215,14 +212,15 @@ def sort_and_merge(records):
             merged_records.append(record)
     return merged_records
 
-def output_results(query_type, users, merged_records, days, human_query_time):
+def output_results(query_type, no_of_users, merged_records, days, query_time):
     """Output query results."""
-    if users:
+    human_query_time = datetime.fromtimestamp(query_time)
+    if no_of_users:
         if query_type == "could":
             summary = "\n{0} had access to {1} in the last {2} (since {3}):"
         else:
             summary = "\n{0} accessed {1} in the last {2} (since {3}):"
-        print(summary.format(pluralise("user", len(users)),
+        print(summary.format(pluralise("user", no_of_users),
                              platform.node(),
                              pluralise("day", days),
                              human_query_time))
@@ -269,7 +267,7 @@ def pluralise(word, count):
 
 def log_could_access(path):
     """Create or append to log of users who could access system."""
-    # Define timestamp variables.
+    # Define timestamps.
     timestamp = time.time()
     human_timestamp = datetime.fromtimestamp(timestamp)
     # Initialise log entry list.
