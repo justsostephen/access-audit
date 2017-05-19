@@ -33,7 +33,6 @@
 
 ## TODO
 
-* Refactor
 * Clean up imports
 * Clean up DEBUG and REMOVE
 * README
@@ -46,9 +45,9 @@ import argparse
 import csv
 from datetime import date, datetime, timedelta
 import glob
-import os
-import platform
-import time
+from os import path
+from platform import node
+from time import time
 
 import getent
 import utmp
@@ -62,7 +61,7 @@ LOG_PATH = "../resources"
 # KEYS_FILE = "/var/lib/misc/ssh-rsa-shadow"
 KEYS_FILE = "../resources/ssh-rsa-shadow-zag"
 # Set default "could access" log path.
-LOG_DEFAULT = os.path.join(LOG_PATH, "could.log")
+LOG_DEFAULT = path.join(LOG_PATH, "could.log")
 # Set `getent passwd` output file path: # REMOVE
 GETENT_OUT = "../resources/getent-passwd-zag" # REMOVE
 
@@ -107,12 +106,12 @@ def number_of_days(days):
         raise argparse.ArgumentTypeError(message)
     return days
 
-def query_could_access(days, path):
+def query_could_access(days, file_path):
     """Query log for users that *could* access system during specified period.
     """
     # Calculate query time and obtain list of log files.
-    query_time = time.time() - days * 86400
-    log_files = compile_logs(path, query_time)
+    query_time = time() - days * 86400
+    log_files = compile_logs(file_path, query_time)
     # Read log files into buffer.
     log_buffer = []
     for log_file in log_files:
@@ -143,13 +142,13 @@ def query_could_access(days, path):
     merged_records = sort_and_merge(records)
     output_results("could", len(users), merged_records, days, query_time)
 
-def query_did_access(days, path):
+def query_did_access(days, file_path):
     """Query "wtmp" files for users that *did* access system during specified
     period.
     """
     # Calculate query time and obtain list of log files.
-    query_time = time.time() - days * 86400
-    log_files = compile_logs(path, query_time)
+    query_time = time() - days * 86400
+    log_files = compile_logs(file_path, query_time)
     # Read log files into buffer.
     log_buffer = b""
     for log_file in log_files:
@@ -178,11 +177,11 @@ def query_did_access(days, path):
     merged_records = sort_and_merge(records)
     output_results("did", len(users), merged_records, days, query_time)
 
-def compile_logs(path, query_time):
+def compile_logs(file_path, query_time):
     """Compile chronological list of relevant log files."""
     log_files = []
-    for log_file in glob.glob("{}*".format(path)):
-        if os.path.getmtime(log_file) > query_time:
+    for log_file in glob.glob("{}*".format(file_path)):
+        if path.getmtime(log_file) > query_time:
             log_files.append(log_file)
     log_files.sort(reverse=True)
     print("Logs: {}".format(log_files)) # DEBUG
@@ -221,7 +220,7 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
         else:
             summary = "\n{0} accessed {1} in the last {2} (since {3}):"
         print(summary.format(pluralise("user", no_of_users),
-                             platform.node(),
+                             node(),
                              pluralise("day", days),
                              human_query_time))
         for record in merged_records:
@@ -253,7 +252,7 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
         else:
             summary = ("\n{0} has not been accessed in the last {1} (since "
                        "{2}).\n")
-        print(summary.format(platform.node(),
+        print(summary.format(node(),
                              pluralise("day", days),
                              human_query_time))
 
@@ -265,10 +264,10 @@ def pluralise(word, count):
         return word
     return "{} {}s".format(count, word)
 
-def log_could_access(path):
+def log_could_access(file_path):
     """Create or append to log of users who could access system."""
     # Define timestamps.
-    timestamp = time.time()
+    timestamp = time()
     human_timestamp = datetime.fromtimestamp(timestamp)
     # Initialise log entry list.
     users = [timestamp, human_timestamp]
@@ -288,7 +287,7 @@ def log_could_access(path):
         if user in users_with_keys and user not in users:
             users.append(user)
     # Write CSV log entry.
-    with open(path, "a", newline="") as out_file:
+    with open(file_path, "a", newline="") as out_file:
         writer = csv.writer(out_file)
         writer.writerow(users)
 
@@ -332,7 +331,7 @@ def main():
     if args.could:
         query_could_access(args.could, args.path)
     elif args.did:
-        query_did_access(args.did, os.path.join(LOG_PATH, "wtmp"))
+        query_did_access(args.did, path.join(LOG_PATH, "wtmp"))
     elif args.log:
         log_could_access(args.path)
     else:
