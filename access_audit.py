@@ -49,7 +49,7 @@ from os import path
 from platform import node
 from time import time
 
-import getent
+from getent import passwd
 import utmp
 
 # Set default query duration.
@@ -233,7 +233,7 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
                 period = "between {} and {}".format(rec_start, rec_end)
             print("\n{} {}:".format(pluralise("user", len(rec_users)), period))
             for rec_user in rec_users:
-                # DEBUG: `password_db_entry = getent.passwd(rec_user)`
+                # DEBUG: `password_db_entry = passwd(rec_user)`
                 password_db_entry = getent_passwd(rec_user)
                 name_not_found = "{} (real name not found)".format(rec_user)
                 if password_db_entry:
@@ -282,7 +282,7 @@ def log_could_access(file_path):
                     users_with_keys.append(user)
     # Cross reference password database entries with list of users with SSH
     # keys and compile log entry.
-    for entry in getent_passwd(): # DEBUG: `for entry in getent.passwd():`
+    for entry in getent_passwd(): # DEBUG: `for entry in passwd():`
         user = entry.name
         if user in users_with_keys and user not in users:
             users.append(user)
