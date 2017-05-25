@@ -50,11 +50,15 @@ import utmp
 # Set default query duration.
 QUERY_DAYS = 31
 # Set system log path.
-LOG_PATH = "/var/log"
+# LOG_PATH = "/var/log"
+LOG_PATH = "../resources" # DEBUG
 # Set "ssh-rsa-shadow" file path.
-KEYS_FILE = "/var/lib/misc/ssh-rsa-shadow"
+# KEYS_FILE = "/var/lib/misc/ssh-rsa-shadow"
+KEYS_FILE = "../resources/ssh-rsa-shadow-zag" # DEBUG
 # Set default "could access" log path.
 LOG_DEFAULT = path.join(LOG_PATH, "could.log")
+# Set `getent passwd` output file path: # DEBUG
+GETENT_OUT = "../resources/getent-passwd-zag" # DEBUG
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -223,7 +227,8 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
                 period = "between {} and {}".format(rec_start, rec_end)
             print("\n{} {}:".format(pluralise("user", len(rec_users)), period))
             for rec_user in rec_users:
-                password_db_entry = passwd(rec_user)
+                # DEBUG: `password_db_entry = passwd(rec_user)`
+                password_db_entry = getent_passwd(rec_user)
                 name_not_found = "{} (real name not found)".format(rec_user)
                 if password_db_entry:
                     real_name = password_db_entry.gecos.split(",")[0]
@@ -271,7 +276,7 @@ def log_could_access(file_path):
                     users_with_keys.append(user)
     # Cross reference password database entries with list of users with SSH
     # keys and compile log entry.
-    for entry in passwd():
+    for entry in getent_passwd(): # DEBUG: `for entry in passwd():`
         user = entry.name
         if user in users_with_keys and user not in users:
             users.append(user)
@@ -279,6 +284,38 @@ def log_could_access(file_path):
     with open(file_path, "a", newline="") as out_file:
         writer = csv.writer(out_file)
         writer.writerow(users)
+
+class PasswordDbEntry: # DEBUG
+    """Password database entry data structure for `getent.passwd()` emulation
+    using output file.
+    """
+    def __init__(self, entry_parts):
+        self.name = entry_parts[0]
+        self.password = entry_parts[1]
+        self.uid = entry_parts[2]
+        self.gid = entry_parts[3]
+        self.gecos = entry_parts[4]
+        self.dir = entry_parts[5]
+        self.shell = entry_parts[6]
+
+def getent_passwd(user=None): # DEBUG
+    """Emulate `getent.passwd()` functionality using output file."""
+    with open(GETENT_OUT) as entries:
+        if user:
+            for entry in entries:
+                parts = entry.split(":")
+                if parts[0] == user:
+                    user_entry = PasswordDbEntry(parts)
+                    return user_entry
+            user_entry = None
+            return user_entry
+        else:
+            users = []
+            for entry in entries:
+                parts = entry.split(":")
+                user_entry = PasswordDbEntry(parts)
+                users.append(user_entry)
+            return users
 
 def main():
     """If an argument was passed, call related function, otherwise output usage.
