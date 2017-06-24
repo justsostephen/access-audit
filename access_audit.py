@@ -38,7 +38,11 @@ __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 
 import argparse
 import csv
-from datetime import date, datetime, timedelta
+from datetime import (
+    date,
+    datetime,
+    timedelta,
+)
 import glob
 from os import path
 from platform import node
@@ -55,6 +59,7 @@ LOG_PATH = "/var/log"
 KEYS_FILE = "/var/lib/misc/ssh-rsa-shadow"
 # Set default "could access" log path.
 LOG_DEFAULT = path.join(LOG_PATH, "could.log")
+
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -87,6 +92,7 @@ def parse_arguments():
     args = parser.parse_args()
     return args, parser.format_usage()
 
+
 def number_of_days(days):
     """Check validity of `days` command line arguments."""
     # Ensure `days` is a positive integer.
@@ -96,6 +102,7 @@ def number_of_days(days):
             "invalid days value: {} (positive integer required)".format(days))
         raise argparse.ArgumentTypeError(message)
     return days
+
 
 def query_could_access(days, file_path):
     """Query log for users that *could* access system during specified period.
@@ -133,6 +140,7 @@ def query_could_access(days, file_path):
     merged_records = sort_and_merge(records)
     output_results("could", len(users), merged_records, days, query_time)
 
+
 def query_did_access(days, file_path):
     """Query "wtmp" files for users that *did* access system during specified
     period.
@@ -168,14 +176,14 @@ def query_did_access(days, file_path):
     merged_records = sort_and_merge(records)
     output_results("did", len(users), merged_records, days, query_time)
 
+
 def compile_logs(file_path, query_time):
     """Compile chronological list of relevant log files."""
-    log_files = []
-    for log_file in glob.glob("{}*".format(file_path)):
-        if path.getmtime(log_file) > query_time:
-            log_files.append(log_file)
+    log_files = [log_file for log_file in glob.glob("{}*".format(file_path))
+                 if path.getmtime(log_file) > query_time]
     log_files.sort(reverse=True)
     return log_files
+
 
 def sort_and_merge(records):
     """Sort and merge access records."""
@@ -200,6 +208,7 @@ def sort_and_merge(records):
         else:
             merged_records.append(record)
     return merged_records
+
 
 def output_results(query_type, no_of_users, merged_records, days, query_time):
     """Output query results."""
@@ -245,6 +254,7 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
                              pluralise("day", days),
                              human_query_time))
 
+
 def pluralise(word, count):
     """Return singular or plural form of given word."""
     if count == 1:
@@ -252,6 +262,7 @@ def pluralise(word, count):
             return "1 user"
         return word
     return "{} {}s".format(count, word)
+
 
 def log_could_access(file_path):
     """Create or append to log of users who could access system."""
@@ -280,6 +291,7 @@ def log_could_access(file_path):
         writer = csv.writer(out_file)
         writer.writerow(users)
 
+
 def main():
     """If an argument was passed, call related function, otherwise output usage.
     """
@@ -292,6 +304,7 @@ def main():
         log_could_access(args.path)
     else:
         print(usage)
+
 
 if __name__ == "__main__":
     main()
