@@ -10,10 +10,6 @@ history to the relevant command line option.
 
 ## Dependencies
 
-* getent installed by downloading "getent-0.2.tar.gz" from
-  "https://pypi.python.org/pypi/getent/0.2", extracting archive contents,
-  replacing `file()` with `open()` on line 9 of "getent-0.2/setup.py", and
-  running `python setup.py install`
 * utmp installed from PyPI with pip
 
 

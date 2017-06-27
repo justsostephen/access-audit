@@ -13,10 +13,6 @@ history to the relevant command line option.
 
 ## Dependencies
 
-* getent installed by downloading "getent-0.2.tar.gz" from
-  "https://pypi.python.org/pypi/getent/0.2", extracting archive contents,
-  replacing `file()` with `open()` on line 9 of "getent-0.2/setup.py", and
-  running `python setup.py install`
 * utmp installed from PyPI with pip
 
 
@@ -46,9 +42,9 @@ from datetime import (
 import glob
 from os import path
 from platform import node
+import pwd
 from time import time
 
-from getent import passwd
 import utmp
 
 # Set default query duration.
@@ -232,10 +228,13 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
                 period = "between {} and {}".format(rec_start, rec_end)
             print("\n{} {}:".format(pluralise("user", len(rec_users)), period))
             for rec_user in rec_users:
-                password_db_entry = passwd(rec_user)
+                try:
+                    password_db_entry = pwd.getpwnam(rec_user)
+                except KeyError:
+                    password_db_entry = None
                 name_not_found = "{} (real name not found)".format(rec_user)
                 if password_db_entry:
-                    real_name = password_db_entry.gecos.split(",")[0]
+                    real_name = password_db_entry.pw_gecos.split(",")[0]
                     if real_name:
                         print(real_name)
                     else:
@@ -282,8 +281,8 @@ def log_could_access(file_path):
                     users_with_keys.append(user)
     # Cross reference password database entries with list of users with SSH
     # keys and compile log entry.
-    for entry in passwd():
-        user = entry.name
+    for entry in pwd.getpwall():
+        user = entry.pw_name
         if user in users_with_keys and user not in users:
             users.append(user)
     # Write CSV log entry.
