@@ -61,7 +61,8 @@ def parse_arguments():
     """Parse command line arguments."""
     # Create parser object.
     parser = argparse.ArgumentParser(
-        description="System access auditing and logging.")
+        description="System access auditing and logging."
+    )
     # Create mutually exclusive argument group.
     group = parser.add_mutually_exclusive_group()
     # Populate argument group.
@@ -70,20 +71,28 @@ def parse_arguments():
         nargs="?", const=QUERY_DAYS, metavar="DAYS",
         help=("list users that *could* access system during specified number "
               "of days (default: %(const)s; use `--path` option to override "
-              "default log file location)"))
+              "default log file location)")
+    )
     group.add_argument(
         "-d", "--did", type=number_of_days,
         nargs="?", const=QUERY_DAYS, metavar="DAYS",
         help=("list users that *did* access system during specified number of "
-              "days (default: %(const)s)"))
+              "days (default: %(const)s)")
+    )
     group.add_argument(
         "-l", "--log", action="store_true",
         help=("create or append to log of users who could access system (use "
-              "`--path` option to override default log file location)"))
+              "`--path` option to override default log file location)")
+    )
     parser.add_argument(
         "-p", "--path", default=LOG_DEFAULT,
         help=("specify alternative log path for `--could` or `--log` options, "
-              "overriding the default (%(default)s)"))
+              "overriding the default (%(default)s)")
+    )
+    parser.add_argument(
+        "-s", "--csv", action="store_true",
+        help="output results as CSV, suitable for importing into a spreadsheet"
+    )
     # Parse and return arguments, along with usage.
     args = parser.parse_args()
     return args, parser.format_usage()
@@ -100,7 +109,7 @@ def number_of_days(days):
     return days
 
 
-def query_could_access(days, file_path):
+def query_could_access(days, file_path, output_csv):
     """Query log for users that *could* access system during specified period.
     """
     # Calculate query time and obtain list of log files.
@@ -133,10 +142,13 @@ def query_could_access(days, file_path):
                     if user not in records[entry_date]["users"]:
                         records[entry_date]["users"].append(user)
     # Output results.
-    output_results("could", len(users), records, days, query_time)
+    if output_csv:
+        output_csv_results("could", len(users), records, days, query_time)
+    else:
+        output_text_results("could", len(users), records, days, query_time)
 
 
-def query_did_access(days, file_path):
+def query_did_access(days, file_path, output_csv):
     """Query "wtmp" files for users that *did* access system during specified
     period.
     """
@@ -168,7 +180,10 @@ def query_did_access(days, file_path):
                 elif user not in records[entry_date]["users"]:
                     records[entry_date]["users"].append(user)
     # Output results.
-    output_results("did", len(users), records, days, query_time)
+    if output_csv:
+        output_csv_results("did", len(users), records, days, query_time)
+    else:
+        output_text_results("did", len(users), records, days, query_time)
 
 
 def compile_logs(file_path, query_time):
@@ -179,8 +194,8 @@ def compile_logs(file_path, query_time):
     return log_files
 
 
-def output_results(query_type, no_of_users, records, days, query_time):
-    """Output query results."""
+def output_text_results(query_type, no_of_users, records, days, query_time):
+    """Output text query results."""
     human_query_time = datetime.fromtimestamp(query_time)
     if no_of_users:
         if query_type == "could":
@@ -227,6 +242,11 @@ def output_results(query_type, no_of_users, records, days, query_time):
         print(summary.format(node(),
                              pluralise("day", days),
                              human_query_time))
+
+
+def output_csv_results(query_type, no_of_users, records, days, query_time):
+    """Output CSV query results."""
+    print("Output CSV query results.")
 
 
 def pluralise(word, count):
@@ -296,9 +316,9 @@ def main():
     """
     args, usage = parse_arguments()
     if args.could:
-        query_could_access(args.could, args.path)
+        query_could_access(args.could, args.path, args.csv)
     elif args.did:
-        query_did_access(args.did, path.join(LOG_PATH, "wtmp"))
+        query_did_access(args.did, path.join(LOG_PATH, "wtmp"), args.csv)
     elif args.log:
         log_could_access(args.path)
     else:
