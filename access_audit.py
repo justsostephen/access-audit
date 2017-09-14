@@ -143,7 +143,7 @@ def query_could_access(days, file_path, output_csv):
                         records[entry_date]["users"].append(user)
     # Output results.
     if output_csv:
-        output_csv_results("could", len(users), records, days, query_time)
+        output_csv_results("could", users, records, days, query_time)
     else:
         output_text_results("could", len(users), records, days, query_time)
 
@@ -181,7 +181,7 @@ def query_did_access(days, file_path, output_csv):
                     records[entry_date]["users"].append(user)
     # Output results.
     if output_csv:
-        output_csv_results("did", len(users), records, days, query_time)
+        output_csv_results("did", users, records, days, query_time)
     else:
         output_text_results("did", len(users), records, days, query_time)
 
@@ -244,9 +244,18 @@ def output_text_results(query_type, no_of_users, records, days, query_time):
                              human_query_time))
 
 
-def output_csv_results(query_type, no_of_users, records, days, query_time):
+def output_csv_results(query_type, users, records, days, query_time):
     """Output CSV query results."""
-    print("Output CSV query results.")
+    print("* query_type: {}".format(query_type))  # DEBUG
+    print("* users: {}".format(users))  # DEBUG
+    print("* records: {}".format(records))  # DEBUG
+    print("* days: {}".format(days))  # DEBUG
+    print("* query_time: {}".format(query_time))  # DEBUG
+    dates = [
+        date.fromtimestamp(query_time) + timedelta(day + 1)
+        for day in range(days)
+    ]
+    print("* dates: {}".format(dates))  # DEBUG
 
 
 def pluralise(word, count):
