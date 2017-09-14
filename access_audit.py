@@ -132,9 +132,8 @@ def query_could_access(days, file_path):
                 for user in entry_users:
                     if user not in records[entry_date]["users"]:
                         records[entry_date]["users"].append(user)
-    # Sort and merge records, output results.
-    merged_records = sort_and_merge(records)
-    output_results("could", len(users), merged_records, days, query_time)
+    # Output results.
+    output_results("could", len(users), records, days, query_time)
 
 
 def query_did_access(days, file_path):
@@ -168,9 +167,8 @@ def query_did_access(days, file_path):
                                            "users": [user]}
                 elif user not in records[entry_date]["users"]:
                     records[entry_date]["users"].append(user)
-    # Sort and merge records, output results.
-    merged_records = sort_and_merge(records)
-    output_results("did", len(users), merged_records, days, query_time)
+    # Output results.
+    output_results("did", len(users), records, days, query_time)
 
 
 def compile_logs(file_path, query_time):
@@ -206,7 +204,7 @@ def sort_and_merge(records):
     return merged_records
 
 
-def output_results(query_type, no_of_users, merged_records, days, query_time):
+def output_results(query_type, no_of_users, records, days, query_time):
     """Output query results."""
     human_query_time = datetime.fromtimestamp(query_time)
     if no_of_users:
@@ -218,6 +216,8 @@ def output_results(query_type, no_of_users, merged_records, days, query_time):
                              node(),
                              pluralise("day", days),
                              human_query_time))
+        # Sort and merge records.
+        merged_records = sort_and_merge(records)
         for record in merged_records:
             rec_start, rec_end, rec_users = (record["start"],
                                              record["end"],
