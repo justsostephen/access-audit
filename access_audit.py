@@ -179,31 +179,6 @@ def compile_logs(file_path, query_time):
     return log_files
 
 
-def sort_and_merge(records):
-    """Sort and merge access records."""
-    # Create list of sorted records.
-    sorted_records = sorted(records.values(),
-                            key=lambda record_value: record_value["start"])
-    # Sort user lists for later comparison.
-    for record in sorted_records:
-        record["users"].sort()
-    # Merge records for consecutive days with the same users.
-    merged_records = []
-    for record in sorted_records:
-        if merged_records:
-            last_record = merged_records[-1]
-            if record["start"] == last_record["end"] + timedelta(1):
-                if record["users"] == last_record["users"]:
-                    last_record["end"] = record["start"]
-                else:
-                    merged_records.append(record)
-            else:
-                merged_records.append(record)
-        else:
-            merged_records.append(record)
-    return merged_records
-
-
 def output_results(query_type, no_of_users, records, days, query_time):
     """Output query results."""
     human_query_time = datetime.fromtimestamp(query_time)
@@ -261,6 +236,31 @@ def pluralise(word, count):
             return "1 user"
         return word
     return "{} {}s".format(count, word)
+
+
+def sort_and_merge(records):
+    """Sort and merge access records."""
+    # Create list of sorted records.
+    sorted_records = sorted(records.values(),
+                            key=lambda record_value: record_value["start"])
+    # Sort user lists for later comparison.
+    for record in sorted_records:
+        record["users"].sort()
+    # Merge records for consecutive days with the same users.
+    merged_records = []
+    for record in sorted_records:
+        if merged_records:
+            last_record = merged_records[-1]
+            if record["start"] == last_record["end"] + timedelta(1):
+                if record["users"] == last_record["users"]:
+                    last_record["end"] = record["start"]
+                else:
+                    merged_records.append(record)
+            else:
+                merged_records.append(record)
+        else:
+            merged_records.append(record)
+    return merged_records
 
 
 def log_could_access(file_path):
