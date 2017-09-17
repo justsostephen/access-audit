@@ -217,20 +217,13 @@ def output_text_results(query_type, no_of_users, records, days, query_time):
             else:
                 period = "between {} and {}".format(rec_start, rec_end)
             print("\n{} {}:".format(pluralise("user", len(rec_users)), period))
-            for rec_user in rec_users:
-                try:
-                    password_db_entry = pwd.getpwnam(rec_user)
-                except KeyError:
-                    password_db_entry = None
-                name_not_found = "{} (real name not found)".format(rec_user)
-                if password_db_entry:
-                    real_name = password_db_entry.pw_gecos.split(",")[0]
-                    if real_name:
-                        print(real_name)
-                    else:
-                        print(name_not_found)
-                else:
-                    print(name_not_found)
+            # Compile, sort and output list of real names.
+            sorted_names = [
+                resolve_real_name(rec_user) for rec_user in rec_users
+            ]
+            sorted_names.sort()
+            for name in sorted_names:
+                print(name)
         print()
     else:
         if query_type == "could":
@@ -246,16 +239,32 @@ def output_text_results(query_type, no_of_users, records, days, query_time):
 
 def output_csv_results(query_type, users, records, days, query_time):
     """Output CSV query results."""
-    print("* query_type: {}".format(query_type))  # DEBUG
-    print("* users: {}".format(users))  # DEBUG
-    print("* records: {}".format(records))  # DEBUG
-    print("* days: {}".format(days))  # DEBUG
-    print("* query_time: {}".format(query_time))  # DEBUG
+    # print("* query_type: {}".format(query_type))  # DEBUG
+    # print("* users: {}".format(users))  # DEBUG
+    # print("* records: {}".format(records))  # DEBUG
+    # print("* days: {}".format(days))  # DEBUG
+    # print("* query_time: {}".format(query_time))  # DEBUG
     dates = [
         date.fromtimestamp(query_time) + timedelta(day + 1)
         for day in range(days)
     ]
-    print("* dates: {}".format(dates))  # DEBUG
+    # print("* dates: {}".format(dates))  # DEBUG
+    date_strings = [str(date_object) for date_object in dates]
+    print(",", ",".join(date_strings), sep="")
+    user_records = []
+    for user in users:
+        user_record = [user]
+        for day in dates:
+            if day in records and user in records[day]["users"]:
+                user_record.append("*")
+            else:
+                user_record.append("")
+        user_records.append(user_record)
+    for user_record in user_records:
+        user_record[0] = resolve_real_name(user_record[0])
+    user_records.sort()
+    for user_record in user_records:
+        print(",".join(user_record))
 
 
 def pluralise(word, count):
@@ -290,6 +299,22 @@ def sort_and_merge(records):
         else:
             merged_records.append(record)
     return merged_records
+
+
+def resolve_real_name(user):
+    try:
+        password_db_entry = pwd.getpwnam(user)
+    except KeyError:
+        password_db_entry = None
+    name_not_found = "{} (real name not found)".format(user)
+    if password_db_entry:
+        real_name = password_db_entry.pw_gecos.split(",")[0]
+        if real_name:
+            return real_name
+        else:
+            return name_not_found
+    else:
+        return name_not_found
 
 
 def log_could_access(file_path):
