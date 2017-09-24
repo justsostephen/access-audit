@@ -250,7 +250,7 @@ def output_csv_results(query_type, users, records, days, query_time):
     # print("* days: {}".format(days))  # DEBUG
     # print("* query_time: {}".format(query_time))  # DEBUG
     dates = [
-        date.fromtimestamp(query_time) + timedelta(day + 1)
+        date.fromtimestamp(query_time) + timedelta(day)
         for day in range(days)
     ]
     # print("* dates: {}".format(dates))  # DEBUG
