@@ -43,7 +43,10 @@ import glob
 from os import path
 from platform import node
 import pwd
-from time import time
+from time import (
+    mktime,
+    time,
+)
 
 import utmp
 
@@ -112,8 +115,9 @@ def number_of_days(days):
 def query_could_access(days, file_path, output_csv):
     """Query log for users that *could* access system during specified period.
     """
-    # Calculate query time and obtain list of log files.
-    query_time = time() - days * 86400
+    # Calculate query time (rounded to beginning of day) and obtain list of log
+    # files.
+    query_time = mktime((date.today() - timedelta(days)).timetuple())
     log_files = compile_logs(file_path, query_time)
     # Read log files into buffer.
     log_buffer = []
@@ -152,8 +156,9 @@ def query_did_access(days, file_path, output_csv):
     """Query "wtmp" files for users that *did* access system during specified
     period.
     """
-    # Calculate query time and obtain list of log files.
-    query_time = time() - days * 86400
+    # Calculate query time (rounded to beginning of day) and obtain list of log
+    # files.
+    query_time = mktime((date.today() - timedelta(days)).timetuple())
     log_files = compile_logs(file_path, query_time)
     # Read log files into buffer.
     log_buffer = b""
