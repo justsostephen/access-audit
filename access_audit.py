@@ -249,8 +249,8 @@ def output_csv_results(query_type, users, records, days, query_time):
         for day in range(days)
     ]
     # print("* dates: {}".format(dates))  # DEBUG
-    date_strings = [str(date_object) for date_object in dates]
-    print(",", ",".join(date_strings), sep="")
+    iso_dates = [date_object.isoformat() for date_object in dates]
+    print(",", ",".join(iso_dates), sep="")
     user_records = []
     for user in users:
         user_record = [user]
