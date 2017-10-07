@@ -22,5 +22,3 @@ history to the relevant command line option.
 * Add cron job details above
 * Clean up SSH keys (bootstack and jujumanage users,
   "/etc/ssh/user-authorized-keys")
-* "wtmp" files are currently rotated monthly with 1 month's backlog kept; is
-  this appropriate?

@@ -25,8 +25,6 @@ history to the relevant command line option.
 * Add cron job details above
 * Clean up SSH keys (bootstack and jujumanage users,
   "/etc/ssh/user-authorized-keys")
-* "wtmp" files are currently rotated monthly with 1 month's backlog kept; is
-  this appropriate?
 """
 
 __version__ = "0.1.0"
@@ -244,18 +242,22 @@ def output_text_results(query_type, no_of_users, records, days, query_time):
 
 def output_csv_results(query_type, users, records, days, query_time):
     """Output CSV query results."""
-    # print("* query_type: {}".format(query_type))  # DEBUG
-    # print("* users: {}".format(users))  # DEBUG
-    # print("* records: {}".format(records))  # DEBUG
-    # print("* days: {}".format(days))  # DEBUG
-    # print("* query_time: {}".format(query_time))  # DEBUG
+    # Create list of dates to query, output summary line, output dates in comma
+    # separated ISO 8601 format (YYYY-MM-DD).
     dates = [
         date.fromtimestamp(query_time) + timedelta(day)
         for day in range(days)
     ]
-    # print("* dates: {}".format(dates))  # DEBUG
     iso_dates = [date_object.isoformat() for date_object in dates]
+    print("{0} {1} Access Audit {2} - {3} ({4})".format(
+        node(),
+        query_type.upper(),
+        iso_dates[0],
+        iso_dates[-1],
+        pluralise("user", len(users))
+    ))
     print(",", ",".join(iso_dates), sep="")
+    # Create list of user records, asterisks denoting access, and output as CSV.
     user_records = []
     for user in users:
         user_record = [user]
