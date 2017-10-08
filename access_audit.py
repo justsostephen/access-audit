@@ -27,7 +27,7 @@ history to the relevant command line option.
   "/etc/ssh/user-authorized-keys")
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Stephen Mather <stephen.mather@canonical.com>"
 
 import argparse

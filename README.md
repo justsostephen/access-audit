@@ -13,6 +13,19 @@ history to the relevant command line option.
 * utmp installed from PyPI with pip
 
 
+## Version History
+
+
+### 0.1.0
+
+* Initial release
+
+
+### 0.2.0
+
+* Added CSV output option
+
+
 ## TODO
 
 * Configure cron jobs to:
