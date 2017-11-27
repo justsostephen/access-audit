@@ -13,6 +13,20 @@ history to the relevant command line option.
 * utmp installed from PyPI with pip
 
 
+## Example cron jobs
+
+```
+# Write *could* access log entry at midnight each day.
+0 0 * * * root <path>/access_audit.py -l
+
+# Run *could* access audit for the preceding month at midnight on the first day of each month.
+0 0 1 * * <user> <path>/access_audit.py -c $(date -d 'yesterday' +\%d) -s > <path>/<env>-could-$(date -d 'yesterday' +\%Y\%m).csv
+
+# Run *did* access audit for the preceding month at midnight on the first day of each month.
+0 0 1 * * <user> <path>/access_audit.py -d $(date -d 'yesterday' +\%d) -s > <path>/<env>-did-$(date -d 'yesterday' +\%Y\%m).csv
+```
+
+
 ## Version History
 
 
@@ -26,12 +40,6 @@ history to the relevant command line option.
 * Added CSV output option
 
 
-## TODO
+### 0.2.1
 
-* Configure cron jobs to:
-    + Generate *could* access log
-    + Generate and email *could* access report
-    + Generate and email *did* access report
-* Add cron job details above
-* Clean up SSH keys (bootstack and jujumanage users,
-  "/etc/ssh/user-authorized-keys")
+* Added example cron jobs to documentation
