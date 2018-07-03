@@ -7,6 +7,10 @@ database entries and SSH keys in "/var/lib/misc/ssh-rsa-shadow", then querying
 that log.  Query duration is defined by passing the requisite number of days'
 history to the relevant command line option.
 
+Copyright (C) 2017 Canonical Ltd.
+
+This file is licensed under the Creative Commons Attribution-ShareAlike 4.0 International Public License (CC BY-SA 4.0).  To view a copy of the license, visit "https://creativecommons.org/licenses/by-sa/4.0/legalcode".
+
 
 ## Dependencies
 
@@ -43,3 +47,8 @@ history to the relevant command line option.
 ### 0.2.1
 
 * Added example cron jobs to documentation
+
+
+### 0.2.2
+
+* Added copyright and license details
