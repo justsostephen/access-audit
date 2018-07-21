@@ -9,7 +9,9 @@ history to the relevant command line option.
 
 Copyright (C) 2017 Canonical Ltd.
 
-This file is licensed under the Creative Commons Attribution-ShareAlike 4.0 International Public License (CC BY-SA 4.0).  To view a copy of the license, visit "https://creativecommons.org/licenses/by-sa/4.0/legalcode".
+This file is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International Public License (CC BY-SA 4.0).  To view a copy of the license,
+visit "https://creativecommons.org/licenses/by-sa/4.0/legalcode".
 
 
 ## Dependencies
@@ -52,3 +54,8 @@ This file is licensed under the Creative Commons Attribution-ShareAlike 4.0 Inte
 ### 0.2.2
 
 * Added copyright and license details
+
+
+### 0.2.3
+
+* Fixed README license paragraph wrapping
